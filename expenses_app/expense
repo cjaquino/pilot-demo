@@ -1,0 +1,26 @@
+#!/usr/bin/env node
+
+const { Client } = require('pg');
+
+let client = new Client({ database: 'expenses' });
+
+async function listExpenses() {
+  await client.connect();
+
+  let res = await client.query("SELECT * FROM expenses ORDER BY created_on");
+
+  res.rows.forEach(row => {
+    let data = [
+      String(row.id).padStart(3),
+      row.created_on.toDateString().padStart(10),
+      row.amount.padStart(12),
+      row.memo
+    ];
+    
+    console.log(data.join(' | '));
+  });
+
+  client.end();
+}
+
+listExpenses();
