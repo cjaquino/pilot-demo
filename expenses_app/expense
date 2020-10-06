@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 const { Client } = require('pg');
+const readline = require('readline');
 
 function logAndExit(error) {
   console.log(error);
@@ -12,7 +13,101 @@ class ExpenseData {
     this.client = new Client({ database: 'expenses' });
   }
 
+  async listExpenses() {
+    await this.client.connect().catch(error => logAndExit(error));
+    await this.setup_schema().catch(error => logAndExit(error));
+
+    let res = await this.client
+      .query("SELECT * FROM expenses ORDER BY created_on")
+      .catch(error => logAndExit(error));
+
+    this.displayCount(res.rowCount);
+    this.displayExpenses(res.rows);
+    if (res.rowCount > 1) {
+      this.displayTotal(res.rows);
+    }
+
+    await this.client.end().catch(error => logAndExit(error));
+  }
+
+  async addExpense(amount, memo) {
+    await this.client.connect().catch(error => logAndExit(error));
+    await this.setup_schema().catch(error => logAndExit(error));
+    let date = (new Date()).toLocaleDateString();
+
+    let queryText = 'INSERT INTO expenses (amount, memo, created_on) VALUES ($1, $2, $3)';
+    let queryValues = [amount, memo, date];
+    await this.client.query(queryText, queryValues)
+      .catch(error => logAndExit(error));
+
+    await this.client.end().catch(error => logAndExit(error));
+  }
+
+  async deleteExpense(id) {
+    await this.client.connect().catch(error => logAndExit(error));
+    await this.setup_schema().catch(error => logAndExit(error));
+
+    let queryText = "SELECT * FROM expenses WHERE id = $1";
+    let res = await this.client.query(queryText, [id]).catch(error => logAndExit(error));
+    
+    if (res.rowCount === 1) {
+      queryText = "DELETE FROM expenses WHERE id = $1";
+      await this.client.query(queryText, [id]).catch(error => logAndExit(error));
+      console.log(`The following expense has been deleted:`);
+      this.displayExpenses(res.rows);
+    } else {
+      console.log(`There is no expense with the id '#${id}'.`);
+    }
+
+    await this.client.end().catch(error => logAndExit(error));
+  }
+
+  async deleteAllExpenses() {
+    await this.client.connect().catch(error => logAndExit(error));
+    await this.setup_schema().catch(error => logAndExit(error));
+
+    let queryText = "DELETE FROM expenses";
+    await this.client.query(queryText).catch(error => logAndExit(error));
+    console.log("All expenses have been deleted.");
+
+    await this.client.end().catch(error => logAndExit(error));
+  }
+
+  async searchExpenses(searchTerm) {
+    await this.client.connect().catch(error => logAndExit(error));
+    await this.setup_schema().catch(error => logAndExit(error));
+
+    let queryText = "SELECT * FROM expenses WHERE memo ILIKE $1";
+    let res = await this.client.query(queryText, [`%${searchTerm}%`]).catch(error => logAndExit(error));
+
+    this.displayCount(res.rowCount);
+    this.displayExpenses(res.rows);
+    if (res.rowCount > 1) {
+      this.displayTotal(res.rows);
+    }
+
+    await this.client.end().catch(error => logAndExit(error));
+  }
+
+  async setup_schema() {
+    let tableExistsQuery = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'expenses'";
+    let res = await this.client.query(tableExistsQuery).catch(error => logAndExit(error));
+
+    if (res.rows[0].count === '0') {
+      let createTableQuery = `CREATE TABLE expenses (
+        id serial PRIMARY KEY,
+        amount numeric(6, 2) NOT NULL,
+        memo text NOT NULL,
+        created_on date NOT NULL
+      );
+      
+      ALTER TABLE expenses ADD CONSTRAINT positive_amount_check CHECK (amount >= 0.01)`;
+      await this.client.query(createTableQuery).catch(error => logAndExit(error));
+    }
+  }
+
   displayExpenses(rows) {
+    
     rows.forEach(row => {
       let data = [
         String(row.id).padStart(3),
@@ -25,39 +120,20 @@ class ExpenseData {
     });
   }
 
-  async listExpenses() {
-    await this.client.connect().catch(error => logAndExit(error));
-
-    let res = await this.client
-      .query("SELECT * FROM expenses ORDER BY created_on")
-      .catch(error => logAndExit(error));
-
-    this.displayExpenses(res.rows);
-
-    await this.client.end().catch(error => logAndExit(error));
+  displayCount(rowCount) {
+    if (rowCount === 0) {
+      console.log("There are no expenses.");
+    } else {
+      let string = rowCount === 1 ? "There is 1 expense." : 
+        `There are ${rowCount} expenses.`;
+      console.log(string);
+    }
   }
 
-  async addExpense(amount, memo) {
-    await this.client.connect().catch(error => logAndExit(error));
-    let date = (new Date()).toLocaleDateString();
-
-    let queryText = 'INSERT INTO expenses (amount, memo, created_on) VALUES ($1, $2, $3)';
-    let queryValues = [amount, memo, date];
-    await this.client.query(queryText, queryValues)
-      .catch(error => logAndExit(error));
-
-    await this.client.end().catch(error => logAndExit(error));
-  }
-
-  async searchExpenses(searchTerm) {
-    await this.client.connect().catch(error => logAndExit(error));
-
-    let queryText = "SELECT * FROM expenses WHERE memo ILIKE $1";
-    let res = await this.client.query(queryText, [`%${searchTerm}%`]).catch(error => logAndExit(error));
-
-    this.displayExpenses(res.rows);
-
-    await this.client.end().catch(error => logAndExit(error));
+  displayTotal(rows) {
+    let total = rows.reduce((acc, curr) => acc + Number(curr.amount), 0);
+    console.log('-'.repeat(50));
+    console.log(`Total ${String(total).padStart(30)}`);
   }
 }
 
@@ -97,6 +173,16 @@ search QUERY - list expenses with a matching memo field`;
     } else if (command === 'search') {
       let searchTerm = args[3];
       this.application.searchExpenses(searchTerm);
+    } else if (command === 'delete') {
+      this.application.deleteExpense(args[3]);
+    } else if (command === 'clear') {
+      let rl = readline.createInterface({ input: process.stdin, output: process.stdout});
+      rl.question("This will remove all expenses. Are you sure? (enter y to confirm) ", answer => {
+        if (answer === 'y') {
+          console.log('test');
+        }
+        rl.close();
+      });
     } else {
       this.displayHelp();
     }
