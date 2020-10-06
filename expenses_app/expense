@@ -2,6 +2,16 @@
 
 const { Client } = require('pg');
 
+const HELP = `An expense recording system
+
+Commands:
+
+add AMOUNT MEMO [DATE] - record a new expense
+clear - delete all expenses
+list - list all expenses
+delete NUMBER - remove expense with id NUMBER
+search QUERY - list expenses with a matching memo field`;
+
 let client = new Client({ database: 'expenses' });
 
 async function listExpenses() {
@@ -23,4 +33,15 @@ async function listExpenses() {
   client.end();
 }
 
-listExpenses();
+function displayHelp() {
+  console.log(HELP);
+}
+
+let args = process.argv;
+let command = args[2];
+
+if (command === 'list') {
+  listExpenses();
+} else {
+  displayHelp();
+}
