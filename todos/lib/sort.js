@@ -13,10 +13,10 @@ const compareByTitle = (itemA, itemB) => {
 };
 
 module.exports = {
-  // return the list of todo lists sorted by completion status and title.
-  sortTodoLists(todoLists) {
-    let undone = todoLists.filter(todoList => !todoList.isDone());
-    let done = todoLists.filter(todoList => todoList.isDone());
+  // Return a list of todo lists sorted by their completion status and title
+  // (case-sensitive). The uncompleted and completed todo lists must be passed
+  // to the method via the `undone` and `done` arguments.
+  sortTodoLists(undone, done) {
     undone.sort(compareByTitle);
     done.sort(compareByTitle);
     return [].concat(undone, done);
