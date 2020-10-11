@@ -1,14 +1,20 @@
 "use strict";
 
-const SeedData = require("./seed-data");
+// const SeedData = require("./seed-data");
 const deepCopy = require("./deep-copy");
 const { sortTodoLists, sortTodos } = require("./sort");
 const nextId = require("./next-id");
 
 module.exports = class SessionPersistence {
   constructor(session) {
-    this._todoLists = session.todoLists || deepCopy(SeedData);
+    this._todoLists = session.todoLists;
     session.todoLists = this._todoLists;
+  }
+
+  // Returns `true` if `error` seems to indicate a `UNIQUE` constraint
+  // violation, `false` otherwise.
+  isUniqueConstraintViolation(_error) {
+    return false;
   }
 
   // Are all of the todos in the todo list done? If the todo list has at least
