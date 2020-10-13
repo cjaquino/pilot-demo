@@ -8,8 +8,8 @@ const flash = require("express-flash");
 const session = require("express-session");
 const { body, validationResult } = require("express-validator");
 const store = require("connect-loki");
-// const PgPersistence = require("./lib/pg-persistence");
-const SessionPersistence = require("./lib/session-persistence");
+const PgPersistence = require("./lib/pg-persistence");
+// const SessionPersistence = require("./lib/session-persistence");
 const catchError = require("./lib/catch-error");
 
 const app = express();
@@ -41,16 +41,28 @@ app.use(flash());
 
 // Create a new datastore
 app.use((req, res, next) => {
-  res.locals.store = new SessionPersistence(req.session);
+  res.locals.store = new PgPersistence(req.session);
   next();
 });
 
 // Extract session info
 app.use((req, res, next) => {
+  res.locals.username = req.session.username;
+  res.locals.signedIn = req.session.signedIn;
   res.locals.flash = req.session.flash;
   delete req.session.flash;
   next();
 });
+
+// Detect unauthorized access to routes
+const requiresAuthentication = (_req, res, next) => {
+  if (!res.locals.signedIn) {
+    console.log("Unauthorized.");
+    res.status(401).send("Unauthorized.");
+  } else {
+    next();
+  }
+};
 
 // Redirect start page
 app.get("/", (req, res) => {
@@ -58,13 +70,13 @@ app.get("/", (req, res) => {
 });
 
 // Render the list of todo lists
-app.get("/lists", 
+app.get("/lists",
   catchError(async (req, res) => {
     let store = res.locals.store;
     let todoLists = await store.sortedTodoLists();
-  
+
     let todosInfo = todoLists.map(todoList => store.todoListInfo(todoList));
-  
+
     res.render("lists", {
       todoLists,
       todosInfo
@@ -73,9 +85,12 @@ app.get("/lists",
 );
 
 // Render new todo list page
-app.get("/lists/new", (req, res) => {
-  res.render("new-list");
-});
+app.get("/lists/new",
+  requiresAuthentication,
+  (req, res) => {
+    res.render("new-list");
+  }
+);
 
 // Create a new todo list
 app.post("/lists",
@@ -88,6 +103,7 @@ app.post("/lists",
       .withMessage("List title must be between 1 and 100 characters.")
       .withMessage("List title must be unique."),
   ],
+  requiresAuthentication,
   catchError(async (req, res) => {
     let store = res.locals.store;
     let errors = validationResult(req);
@@ -138,7 +154,8 @@ app.get("/lists/:todoListId",
 );
 
 // Toggle completion status of a todo
-app.post("/lists/:todoListId/todos/:todoId/toggle", 
+app.post("/lists/:todoListId/todos/:todoId/toggle",
+  requiresAuthentication,
   catchError(async (req, res) => {
     let store = res.locals.store;
     let { todoListId, todoId } = req.params;
@@ -158,6 +175,7 @@ app.post("/lists/:todoListId/todos/:todoId/toggle",
 
 // Delete a todo
 app.post("/lists/:todoListId/todos/:todoId/destroy",
+  requiresAuthentication,
   catchError(async (req, res) => {
     let store = res.locals.store;
     let { todoListId, todoId } = req.params;
@@ -170,13 +188,14 @@ app.post("/lists/:todoListId/todos/:todoId/destroy",
 );
 
 // Mark all todos as done
-app.post("/lists/:todoListId/complete_all", 
+app.post("/lists/:todoListId/complete_all",
+  requiresAuthentication,
   catchError(async (req, res) => {
     let store = res.locals.store;
     let todoListId = req.params.todoListId;
     let completedAll = await store.completeAllTodos(+todoListId);
     if (!completedAll) throw new Error("Not found.");
- 
+
     req.flash("success", "All todos have been marked as done.");
     res.redirect(`/lists/${todoListId}`);
   })
@@ -192,6 +211,7 @@ app.post("/lists/:todoListId/todos",
       .isLength({ max: 100 })
       .withMessage("Todo title must be between 1 and 100 characters."),
   ],
+  requiresAuthentication,
   catchError(async(req, res) => {
     let store = res.locals.store;
     let todoListId = req.params.todoListId;
@@ -222,8 +242,9 @@ app.post("/lists/:todoListId/todos",
 );
 
 // Render edit todo list form
-app.get("/lists/:todoListId/edit", 
-  catchError(async (req, res, next) => {
+app.get("/lists/:todoListId/edit",
+  requiresAuthentication,
+  catchError(async (req, res) => {
     let store = res.locals.store;
     let todoListId = req.params.todoListId;
     let todoList = await store.loadTodoList(+todoListId);
@@ -234,13 +255,14 @@ app.get("/lists/:todoListId/edit",
 );
 
 // Delete todo list
-app.post("/lists/:todoListId/destroy", 
+app.post("/lists/:todoListId/destroy",
+  requiresAuthentication,
   catchError(async (req, res) => {
     let store = res.locals.store;
     let todoListId = +req.params.todoListId;
     let deleted = await store.deleteTodoList(todoListId);
     if (!deleted) throw new Error("Not found.");
-    
+
     req.flash("success", "Todo list deleted.");
     res.redirect("/lists");
   })
@@ -257,6 +279,7 @@ app.post("/lists/:todoListId/edit",
       .withMessage("List title must be between 1 and 100 characters.")
       .withMessage("List title must be unique."),
   ],
+  requiresAuthentication,
   catchError(async (req, res) => {
     let store = res.locals.store;
     let todoListId = req.params.todoListId;
@@ -284,7 +307,7 @@ app.post("/lists/:todoListId/edit",
       } else {
         let updated = await store.setTodoListTitle(+todoListId, todoListTitle);
         if (!updated) throw new Error("Not found.");
-  
+
         req.flash("success", "Todo list updated.");
         res.redirect(`/lists/${todoListId}`);
       }
@@ -298,6 +321,45 @@ app.post("/lists/:todoListId/edit",
     }
   })
 );
+
+// Render the Sign In page.
+app.get(`/users/signin`, (req, res) => {
+  req.flash("info", "Please sign in.");
+  res.render("signin", {
+    flash: req.flash()
+  });
+});
+
+// Handle Sign In form submission
+app.post(`/users/signin`,
+  catchError(async (req, res) => {
+    let store = res.locals.store;
+    let username = req.body.username.trim();
+    let password = req.body.password;
+
+    let authenticated = await store.authenticate(username, password);
+    if (!authenticated) {
+      req.flash("error", "Invalid credentials.");
+      res.render("signin", {
+        username,
+        flash: req.flash()
+      });
+    } else {
+      let session = req.session;
+      session.username = username;
+      session.signedIn = true;
+      req.flash("success", "Welcome!");
+      res.redirect(`/lists`);
+    }
+  })
+);
+
+// Handle Sign Out
+app.post(`/users/signout`, (req, res) => {
+  delete req.session.username;
+  delete req.session.signedIn;
+  res.redirect(`/users/signin`);
+});
 
 // Error handler
 app.use((err, req, res, _next) => {

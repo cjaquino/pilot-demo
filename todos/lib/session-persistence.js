@@ -184,4 +184,5 @@ module.exports = class SessionPersistence {
   existsTodoListTitle(todoListTitle) {
     return this._todoLists.some(list => list.title === todoListTitle);
   }
+
 };

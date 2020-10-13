@@ -1,6 +1,7 @@
 "use strict";
 
 const { dbQuery } = require("./db-query");
+const bcrypt = require("bcrypt");
 
 module.exports = class PgPersistence {
   constructor(session) {
@@ -181,8 +182,8 @@ module.exports = class PgPersistence {
       return result.rowCount > 0;
     } catch (error) {
       if (this.isUniqueConstraintViolation(error)) return false;
-        throw error;
-    } 
+      throw error;
+    }
   }
 
   // Find the todo list using the specified id and change its title to the
@@ -195,12 +196,25 @@ module.exports = class PgPersistence {
     return result.rowCount > 0;
   }
 
-  // Returns a promise that resolves to `true` if a todo list with the 
+  // Returns a promise that resolves to `true` if a todo list with the
   // specified title exists in todolists, `false` otherwise.
   async existsTodoListTitle(todoListTitle) {
     const FIND_TODOLIST_TITLE = "SELECT title FROM todolists WHERE title = $1";
 
     let result = await dbQuery(FIND_TODOLIST_TITLE, todoListTitle);
     return result.rowCount > 0;
+  }
+
+  // Returns a Promise that resolves to `true` if `username` and `password`
+  // combine to identify a legitimate application user, `false` if either the
+  // `username` or `password` is invalid.
+  async authenticate(username, password) {
+    const FIND_HASHED_PASSWORD = "SELECT password FROM users" +
+                      "  WHERE username = $1";
+
+    let result = await dbQuery(FIND_HASHED_PASSWORD, username);
+    if (result.rowCount === 0) return false;
+
+    return bcrypt.compare(password, result.rows[0].password);
   }
 };
