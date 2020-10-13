@@ -5,7 +5,7 @@ const bcrypt = require("bcrypt");
 
 module.exports = class PgPersistence {
   constructor(session) {
-
+    this.username = session.username;
   }
 
   // Returns `true` if `error` seems to indicate a `UNIQUE` constraint
@@ -25,15 +25,15 @@ module.exports = class PgPersistence {
   // together with their todos. The list is sorted by completion status and
   // title (case-insensitive). The todos in the list are unsorted.
   async sortedTodoLists() {
-    const ALL_TODOLISTS = "SELECT * FROM todolists ORDER BY lower(title) ASC";
-    const FIND_TODOS = "SELECT * FROM todos WHERE todolist_id = $1";
+    const ALL_TODOLISTS = "SELECT * FROM todolists WHERE username = $1 ORDER BY lower(title) ASC";
+    const FIND_TODOS = "SELECT * FROM todos WHERE todolist_id = $1 AND username = $2";
 
-    let result = await dbQuery(ALL_TODOLISTS);
+    let result = await dbQuery(ALL_TODOLISTS, this.username);
     let todoLists = result.rows;
 
     for (let index = 0; index < todoLists.length; index += 1) {
       let todoList = todoLists[index];
-      let todos = await dbQuery(FIND_TODOS, todoList.id);
+      let todos = await dbQuery(FIND_TODOS, todoList.id, this.username);
       todoList.todos = todos.rows;
     }
 
@@ -59,8 +59,10 @@ module.exports = class PgPersistence {
   // Return the list of todos sorted by completion status and title
   // (case-insensitive)
   async sortedTodos(todoList) {
-    const FIND_TODOS = "SELECT * FROM todos WHERE todolist_id = $1 ORDER BY done ASC, lower(title) ASC";
-    let result = await dbQuery(FIND_TODOS, todoList.id);
+    const FIND_TODOS = "SELECT * FROM todos " + 
+                        "WHERE todolist_id = $1 AND username = $2 " + 
+                        "ORDER BY done ASC, lower(title) ASC";
+    let result = await dbQuery(FIND_TODOS, todoList.id, this.username);
     return result.rows;;
   }
 
@@ -68,11 +70,11 @@ module.exports = class PgPersistence {
   // The todo list contains the todos for the list. Todos are not sroted.
   // The promise resolves to 'undefined' if the todo list is not found.
   async loadTodoList(todoListId) {
-    const FIND_TODOLIST = "SELECT * FROM todolists WHERE id = $1";
-    const FIND_TODOS = "SELECT * FROM todos WHERE todolist_id = $1";
+    const FIND_TODOLIST = "SELECT * FROM todolists WHERE id = $1 AND username = $2";
+    const FIND_TODOS = "SELECT * FROM todos WHERE todolist_id = $1 AND username = $2";
   
-    let resultTodoList = dbQuery(FIND_TODOLIST, todoListId);
-    let resultTodos = dbQuery(FIND_TODOS, todoListId);
+    let resultTodoList = dbQuery(FIND_TODOLIST, todoListId, this.username);
+    let resultTodos = dbQuery(FIND_TODOS, todoListId, this.username);
     let finalResult = await Promise.all([resultTodoList, resultTodos]);
     
     let todoList = finalResult[0].rows[0];
@@ -86,9 +88,9 @@ module.exports = class PgPersistence {
   // `undefined` if either the todo list or todo is not found. 
   // Note that both `todoListId` and `todoId` must be numeric.
   async loadTodo(todoListId, todoId) {
-    const FIND_TODO = "SELECT * FROM todos WHERE todolist_id = $1 AND id = $2";
+    const FIND_TODO = "SELECT * FROM todos WHERE todolist_id = $1 AND id = $2 AND username = $3";
 
-    let result = await dbQuery(FIND_TODO, todoListId, todoId);
+    let result = await dbQuery(FIND_TODO, todoListId, todoId, this.username);
     return result.rows[0];
   }
 
@@ -124,10 +126,11 @@ module.exports = class PgPersistence {
   // resolves to `true` on success, `false` if the todo list or todo doesn't
   // exist. The id arguments must both be numeric.
   async toggledTodo(todoListId, todoId) {
-    const TOGGLE_DONE = "UPDATE todos SET done = NOT done" +
-                        "  WHERE todolist_id = $1 AND id = $2";
+    const TOGGLE_DONE = "UPDATE todos SET done = NOT done " +
+                        "WHERE todolist_id = $1 AND id = $2 " +
+                        "AND username = $3";
     
-    let result = await dbQuery(TOGGLE_DONE, todoListId, todoId);
+    let result = await dbQuery(TOGGLE_DONE, todoListId, todoId, this.username);
     return result.rowCount > 0;
   }
 
@@ -135,9 +138,10 @@ module.exports = class PgPersistence {
   // a promsie that resolves to `true` on success, `false` if the todo or
   // todo list doesn't exist. The id arguments must both be numeric.
   async deletedTodo(todoListId, todoId) {
-    const DELETE_TODO = "DELETE FROM todos WHERE todolist_id = $1 AND id = $2";
+    const DELETE_TODO = "DELETE FROM todos " + 
+                        "WHERE todolist_id = $1 AND id = $2 AND username = $3";
 
-    let result = await dbQuery(DELETE_TODO, todoListId, todoId);
+    let result = await dbQuery(DELETE_TODO, todoListId, todoId, this.username);
     return result.rowCount > 0;
   }
 
@@ -145,9 +149,9 @@ module.exports = class PgPersistence {
   // If the todo list does not exist returns a promise that resolves to
   // 'false' otherwise 'true'. The id must be a numeric.
   async deleteTodoList(todoListId) {
-    const DELETE_TODO_LIST = "DELETE FROM todolists WHERE id = $1";
+    const DELETE_TODO_LIST = "DELETE FROM todolists WHERE id = $1 AND username = $2";
 
-    let result = await dbQuery(DELETE_TODO_LIST, todoListId);
+    let result = await dbQuery(DELETE_TODO_LIST, todoListId, this.username);
     return result.rowCount > 0;
   }
 
@@ -156,18 +160,18 @@ module.exports = class PgPersistence {
   // `false` if the todo list doesn't exist. The todo list ID must be numeric.
   async completeAllTodos(todoListId) {
     const COMPLETE_TODOS = "UPDATE todos SET done = true" +
-                           "  WHERE todolist_id = $1 AND NOT done";
+                           "  WHERE todolist_id = $1 AND NOT done AND username = $2";
 
-    let result = await dbQuery(COMPLETE_TODOS, todoListId);
+    let result = await dbQuery(COMPLETE_TODOS, todoListId, this.username);
     return result.rowCount > 0;
   }
 
   // Create a new todo with the specified title and add it to the indicated todo
   // list. Returns a promise that resolves to `true` on success, `false` on failure.
   async createTodo(todoListId, title) {
-    const CREATE_TODO = "INSERT INTO todos (title, todolist_id) VALUES ($1, $2)";
+    const CREATE_TODO = "INSERT INTO todos (title, todolist_id, username) VALUES ($1, $2, $3)";
 
-    let result = await dbQuery(CREATE_TODO, title, todoListId);
+    let result = await dbQuery(CREATE_TODO, title, todoListId, this.username);
     return result.rowCount > 0;
   }
 
@@ -175,10 +179,10 @@ module.exports = class PgPersistence {
   // todo lists. Returns a Promise that resolves to `true` on success, `false`
   // if the todo list already exists.
   async createTodoList(title) {
-    const CREATE_TODOLIST = "INSERT INTO todolists (title) VALUES ($1)";
+    const CREATE_TODOLIST = "INSERT INTO todolists (title, username) VALUES ($1, $2)";
 
     try {
-      let result = await dbQuery(CREATE_TODOLIST, title);
+      let result = await dbQuery(CREATE_TODOLIST, title, this.username);
       return result.rowCount > 0;
     } catch (error) {
       if (this.isUniqueConstraintViolation(error)) return false;
@@ -190,18 +194,18 @@ module.exports = class PgPersistence {
   // specified title argument. Returns a promise that resolves to 
   // 'true' on successful find of todo list and 'false' on failure.
   async setTodoListTitle(todoListId, title) {
-    const UPDATE_TITLE = "UPDATE todolists SET title = $1 WHERE id = $2";
+    const UPDATE_TITLE = "UPDATE todolists SET title = $1 WHERE id = $2 AND username = $3";
 
-    let result = await dbQuery(UPDATE_TITLE, title, todoListId);
+    let result = await dbQuery(UPDATE_TITLE, title, todoListId, this.username);
     return result.rowCount > 0;
   }
 
   // Returns a promise that resolves to `true` if a todo list with the
   // specified title exists in todolists, `false` otherwise.
   async existsTodoListTitle(todoListTitle) {
-    const FIND_TODOLIST_TITLE = "SELECT title FROM todolists WHERE title = $1";
+    const FIND_TODOLIST_TITLE = "SELECT title FROM todolists WHERE title = $1 AND username = $2";
 
-    let result = await dbQuery(FIND_TODOLIST_TITLE, todoListTitle);
+    let result = await dbQuery(FIND_TODOLIST_TITLE, todoListTitle, this.username );
     return result.rowCount > 0;
   }
 
@@ -211,10 +215,10 @@ module.exports = class PgPersistence {
   async authenticate(username, password) {
     const FIND_HASHED_PASSWORD = "SELECT password FROM users" +
                       "  WHERE username = $1";
-
+    
     let result = await dbQuery(FIND_HASHED_PASSWORD, username);
     if (result.rowCount === 0) return false;
-
+ 
     return bcrypt.compare(password, result.rows[0].password);
   }
 };
