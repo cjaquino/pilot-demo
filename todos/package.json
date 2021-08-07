@@ -7,7 +7,7 @@
     "lib": "lib"
   },
   "scripts": {
-    "start": "npx nodemon todos.js",
+    "start": "node todos.js",
     "debug": "npx nodemon --inspect todos.js"
   },
   "author": "",

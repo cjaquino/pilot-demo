@@ -21,12 +21,6 @@ const LokiStore = store(session);
 // set up db tables
 const sql = fs.readFileSync('schema.sql').toString();
 
-try {
-  await dbQuery(sql)
-} catch (error) {
-  console.log(error)
-}
-
 app.set("views", "./views");
 app.set("view engine", "pug");
 
@@ -379,6 +373,11 @@ app.use((err, req, res, _next) => {
 });
 
 // Listener
-app.listen(port, host, () => {
+app.listen(port, host, async () => {
+  try {
+    await dbQuery(sql)
+  } catch (error) {
+    console.log(error)
+  }
   console.log(`Todos is listening on port ${port} of ${host}!`);
 });
