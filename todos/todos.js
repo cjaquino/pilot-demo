@@ -11,11 +11,21 @@ const store = require("connect-loki");
 const PgPersistence = require("./lib/pg-persistence");
 // const SessionPersistence = require("./lib/session-persistence");
 const catchError = require("./lib/catch-error");
-
+const { dbQuery } = require('./lib/db-query')
+const fs = require('fs')
 const app = express();
 const host = "localhost";
 const port = 3000;
 const LokiStore = store(session);
+
+// set up db tables
+const sql = fs.readFileSync('schema.sql').toString();
+
+try {
+  await dbQuery(sql)
+} catch (error) {
+  console.log(error)
+}
 
 app.set("views", "./views");
 app.set("view engine", "pug");
@@ -55,13 +65,13 @@ app.use((req, res, next) => {
 });
 
 // Detect unauthorized access to routes
-const requiresAuthentication = (_req, res, next) => {
-  if (!res.locals.signedIn) {
-    res.redirect(302, "/users/signin");
-  } else {
-    next();
-  }
-};
+// const requiresAuthentication = (_req, res, next) => {
+//   if (!res.locals.signedIn) {
+//     res.redirect(302, "/users/signin");
+//   } else {
+//     next();
+//   }
+// };
 
 // Redirect start page
 app.get("/", (req, res) => {
@@ -70,7 +80,7 @@ app.get("/", (req, res) => {
 
 // Render the list of todo lists
 app.get("/lists",
-  requiresAuthentication,
+  // requiresAuthentication,
   catchError(async (req, res) => {
     let store = res.locals.store;
     let todoLists = await store.sortedTodoLists();
@@ -86,7 +96,7 @@ app.get("/lists",
 
 // Render new todo list page
 app.get("/lists/new",
-  requiresAuthentication,
+  // requiresAuthentication,
   (req, res) => {
     res.render("new-list");
   }
@@ -103,7 +113,7 @@ app.post("/lists",
       .withMessage("List title must be between 1 and 100 characters.")
       .withMessage("List title must be unique."),
   ],
-  requiresAuthentication,
+  // requiresAuthentication,
   catchError(async (req, res) => {
     let store = res.locals.store;
     let errors = validationResult(req);
@@ -137,7 +147,7 @@ app.post("/lists",
 
 // Render individual todo list and its todos
 app.get("/lists/:todoListId",
-  requiresAuthentication,
+  // requiresAuthentication,
   catchError(async (req, res, next) => {
     let store = res.locals.store;
     let todoListId = req.params.todoListId;
@@ -156,7 +166,7 @@ app.get("/lists/:todoListId",
 
 // Toggle completion status of a todo
 app.post("/lists/:todoListId/todos/:todoId/toggle",
-  requiresAuthentication,
+  // requiresAuthentication,
   catchError(async (req, res) => {
     let store = res.locals.store;
     let { todoListId, todoId } = req.params;
@@ -176,7 +186,7 @@ app.post("/lists/:todoListId/todos/:todoId/toggle",
 
 // Delete a todo
 app.post("/lists/:todoListId/todos/:todoId/destroy",
-  requiresAuthentication,
+  // requiresAuthentication,
   catchError(async (req, res) => {
     let store = res.locals.store;
     let { todoListId, todoId } = req.params;
@@ -190,7 +200,7 @@ app.post("/lists/:todoListId/todos/:todoId/destroy",
 
 // Mark all todos as done
 app.post("/lists/:todoListId/complete_all",
-  requiresAuthentication,
+  // requiresAuthentication,
   catchError(async (req, res) => {
     let store = res.locals.store;
     let todoListId = req.params.todoListId;
@@ -212,7 +222,7 @@ app.post("/lists/:todoListId/todos",
       .isLength({ max: 100 })
       .withMessage("Todo title must be between 1 and 100 characters."),
   ],
-  requiresAuthentication,
+  // requiresAuthentication,
   catchError(async(req, res) => {
     let store = res.locals.store;
     let todoListId = req.params.todoListId;
@@ -244,7 +254,7 @@ app.post("/lists/:todoListId/todos",
 
 // Render edit todo list form
 app.get("/lists/:todoListId/edit",
-  requiresAuthentication,
+  // requiresAuthentication,
   catchError(async (req, res) => {
     let store = res.locals.store;
     let todoListId = req.params.todoListId;
@@ -257,7 +267,7 @@ app.get("/lists/:todoListId/edit",
 
 // Delete todo list
 app.post("/lists/:todoListId/destroy",
-  requiresAuthentication,
+  // requiresAuthentication,
   catchError(async (req, res) => {
     let store = res.locals.store;
     let todoListId = +req.params.todoListId;
@@ -280,7 +290,7 @@ app.post("/lists/:todoListId/edit",
       .withMessage("List title must be between 1 and 100 characters.")
       .withMessage("List title must be unique."),
   ],
-  requiresAuthentication,
+  // requiresAuthentication,
   catchError(async (req, res) => {
     let store = res.locals.store;
     let todoListId = req.params.todoListId;

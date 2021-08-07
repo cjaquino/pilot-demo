@@ -10,7 +10,13 @@ const logQuery = (statement, parameters) => {
 
 module.exports = {
   async dbQuery(statement, ...parameters) {
-    let client = new Client({ database: "todo-lists" });
+    let client = new Client({
+      database: "todo-lists",
+      user: "pilot",
+      password: "6z00kDUdR5zO_M5x",
+      host: "127.0.0.1",
+      port: "5432"
+    });
 
     await client.connect();
     logQuery(statement, parameters);
