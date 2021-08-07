@@ -375,7 +375,7 @@ app.use((err, req, res, _next) => {
 // Listener
 app.listen(port, host, async () => {
   try {
-    await dbQuery(sql)
+    await initDb(sql)
   } catch (error) {
     console.log(error)
   }

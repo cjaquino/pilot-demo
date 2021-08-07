@@ -24,5 +24,22 @@ module.exports = {
     await client.end();
 
     return result;
-  }
+  },
+
+  async initDb(sql) {
+    let client = new Client({
+      database: "postgres",
+      user: "pilot",
+      password: "6z00kDUdR5zO_M5x",
+      host: "10.77.0.3",
+      port: "5432"
+    });
+
+    await client.connect();
+    logQuery(statement, parameters);
+    let result = await client.query(sql);
+    await client.end();
+
+    return result;
+  },
 };
