@@ -29,7 +29,7 @@ app "todos" {
       location = "us-east1"
 
       # Port the application is listening on
-      port = 5000
+      port = 3000
 
       capacity {
         memory                     = 128
