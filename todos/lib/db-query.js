@@ -36,7 +36,7 @@ module.exports = {
     });
 
     await client.connect();
-    logQuery(sql);
+    logQuery(sql, "NONE");
     let result = await client.query(sql);
     await client.end();
 
