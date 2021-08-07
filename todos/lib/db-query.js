@@ -28,7 +28,7 @@ module.exports = {
 
   async initDb(sql) {
     let client = new Client({
-      database: "postgres",
+      database: "todo-lists",
       user: "pilot",
       password: "6z00kDUdR5zO_M5x",
       host: "10.77.0.3",
