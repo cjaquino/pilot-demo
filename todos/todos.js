@@ -15,7 +15,7 @@ const { initDb } = require('./lib/db-query')
 const fs = require('fs')
 const app = express();
 const host = "127.0.0.1";
-const port = 3000;
+const port = process.env.PORT || 3000;
 const LokiStore = store(session);
 
 // set up db tables
