@@ -4,7 +4,7 @@ project = "pilot-todos"
 # See the following for additional information on Waypoint's built-in GCR plugin:
 # https://www.waypointproject.io/plugins/google-cloud-run
 
-app "todos-test" {
+app "pilot-todos" {
   # The application entrypoint in relation to the root of your project/repo
   # example: path = "./sub_dir/my_app"
   path = "./todos"
