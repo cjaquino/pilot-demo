@@ -14,7 +14,7 @@ module.exports = {
       database: "todo-lists",
       user: "pilot",
       password: "6z00kDUdR5zO_M5x",
-      host: "127.0.0.1",
+      host: "10.77.0.3",
       port: "5432"
     });
 
