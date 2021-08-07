@@ -32,7 +32,7 @@ app "todos" {
       port = 3000
 
       capacity {
-        memory                     = 128
+        memory                     = 256
         cpu_count                  = 1
         max_requests_per_container = 10
         request_timeout            = 300
