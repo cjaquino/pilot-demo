@@ -14,7 +14,7 @@ const catchError = require("./lib/catch-error");
 const { initDb } = require('./lib/db-query')
 const fs = require('fs')
 const app = express();
-const host = "127.0.0.1";
+// const host = "127.0.0.1";
 const port = process.env.PORT || 3000;
 const LokiStore = store(session);
 
@@ -373,7 +373,7 @@ app.use((err, req, res, _next) => {
 });
 
 // Listener
-app.listen(port, host, async () => {
+app.listen(port, async () => {
   try {
     await initDb(sql)
   } catch (error) {
