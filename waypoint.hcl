@@ -7,7 +7,7 @@ project = "pilot-todos"
 app "todos" {
   # The application entrypoint in relation to the root of your project/repo
   # example: path = "./sub_dir/my_app"
-  path = "././todos"
+  path = "./todos"
 
   build {
     # Builds an image based off of your source code using Cloud Native Buildpacks
@@ -40,6 +40,11 @@ app "todos" {
 
       auto_scaling {
         max = 2
+      }
+      
+      vpc_access {
+        connector = "pilot-vpc-connector"
+        egress = "all"
       }
     }
   }
