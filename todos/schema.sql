@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS todolists (
   id serial PRIMARY KEY,
-  title text UNIQUE NOT NULL CHECK(length(title) > 0 AND length(title) <= 100),
+  title text UNIQUE NOT NULL CHECK(length(title) > 0 AND length(title) <= 100)
 );
 
 CREATE TABLE IF NOT EXISTS todos (
