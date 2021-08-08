@@ -379,5 +379,5 @@ app.listen(port, async () => {
   } catch (error) {
     console.log(error)
   }
-  console.log(`Todos is listening on port ${port} of ${host}!`);
+  console.log(`Todos is listening on port ${port}!`);
 });
