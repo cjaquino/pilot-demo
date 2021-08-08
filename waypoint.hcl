@@ -16,7 +16,7 @@ app "pilot-todos" {
     registry {
       # Pushes built image to Cloud Container Registry
       use "docker" {
-        image = "gcr.io/gcp-pilot-testing/todos"
+        image = "gcr.io/gcp-pilot-testing/pilot-todos"
         tag   = "latest"
       }
     }
