@@ -16,7 +16,7 @@ app "pilot-todos" {
     registry {
       # Pushes built image to Cloud Container Registry
       use "docker" {
-        image = "gcr.io/gcp-pilot-testing/pilot-todos"
+        image = "gcr.io/pilot-321119/pilot-todos"
         tag   = "latest"
       }
     }
@@ -25,7 +25,7 @@ app "pilot-todos" {
   deploy {
     # Deploys application to Google Cloud Run
     use "google-cloud-run" {
-      project  = "gcp-pilot-testing"
+      project  = "pilot-321119"
       location = "us-east1"
 
       # Port the application is listening on
